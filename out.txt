@@ -1,0 +1,7 @@
+| Produto | Preço Unitário | Quantidade | Preço Total |
+|   Banana   |      R$20.000000     |    2    |    R$40.000000    |
+|   Abacaxi   |      R$10.500000     |    3    |    R$31.500000    |
+|   Limao   |      R$40.200001     |    1    |    R$40.200001    |
+|      |      | Sub-Total    | R$111.699997 |
+|      | Imposto 0.05         | R$5.585000 |
+|       |       | Total        | R$117.284996 |

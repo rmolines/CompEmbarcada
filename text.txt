@@ -1,0 +1,3 @@
+Banana 20.0 2
+Abacaxi 10.5 3
+Limao 40.2 1
