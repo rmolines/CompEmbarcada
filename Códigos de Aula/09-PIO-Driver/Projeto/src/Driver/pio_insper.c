@@ -37,3 +37,89 @@ void _pio_set_input( 	Pio *p_pio,
                   p_pio->PIO_OER  = ul_mask;           // Ativa saída                      (Output ENABLE register)
 
                   }
+
+/**
+ * \brief Configure PIO internal pull-up.
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask of one or more pin(s) to configure.
+ * \param ul_pull_up_enable Indicates if the pin(s) internal pull-up shall be
+ * configured.
+ */
+void _pio_pull_up(	Pio *p_pio,
+               const uint32_t ul_mask,
+		            const uint32_t ul_pull_up_enable)
+{
+	/* Enable the pull-up(s) if necessary */
+	if (ul_pull_up_enable) {
+		p_pio->PIO_PUER = ul_mask;
+		} else {
+		p_pio->PIO_PUDR = ul_mask;
+	}
+}
+
+/**
+ * \brief Configure PIO pin internal pull-down.
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask of one or more pin(s) to configure.
+ * \param ul_pull_down_enable Indicates if the pin(s) internal pull-down shall
+ * be configured.
+ */
+void pio_pull_down(Pio *p_pio, const uint32_t ul_mask,
+		const uint32_t ul_pull_down_enable)
+{
+	/* Enable the pull-down if necessary */
+	if (ul_pull_down_enable) {
+		p_pio->PIO_PPDER = ul_mask;
+	} else {
+		p_pio->PIO_PPDDR = ul_mask;
+	}
+}
+
+/**
+ * \brief Set a high output level on all the PIOs defined in ul_mask.
+ * This has no immediate effects on PIOs that are not output, but the PIO
+ * controller will save the value if they are changed to outputs.
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask of one or more pin(s) to configure.
+ */
+void pio_set(Pio *p_pio, const uint32_t ul_mask)
+{
+	p_pio->PIO_SODR = ul_mask;
+}
+
+/**
+ * \brief Set a low output level on all the PIOs defined in ul_mask.
+ * This has no immediate effects on PIOs that are not output, but the PIO
+ * controller will save the value if they are changed to outputs.
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask of one or more pin(s) to configure.
+ */
+void pio_clear(Pio *p_pio, const uint32_t ul_mask)
+{
+	p_pio->PIO_CODR = ul_mask;
+}
+
+/**
+ * \brief Return 1 if one or more PIOs of the given Pin are configured to
+ * output a high level (even if they are not output).
+ * To get the actual value of the pin, use PIO_Get() instead.
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask of one or more pin(s).
+ *
+ * \retval 1 At least one PIO is configured to output a high level.
+ * \retval 0 All PIOs are configured to output a low level.
+ */
+uint32_t pio_get_output_data_status(const Pio *p_pio,
+		const uint32_t ul_mask)
+{
+	if ((p_pio->PIO_ODSR & ul_mask) == 0) {
+		return 0;
+	} else {
+		return 1;
+	}
+}
