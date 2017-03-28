@@ -31,12 +31,14 @@ void _pio_set_output(	Pio *p_pio,
  */
 void _pio_set_input( 	Pio *p_pio,
                     	const uint32_t ul_mask,
-            	   	const uint32_t ul_attribute){
-
-                  p_pio->PIO_PER  = ul_mask;           // Ativa controle do pino no PIO    (PIO ENABLE register)
-                  p_pio->PIO_OER  = ul_mask;           // Ativa saída                      (Output ENABLE register)
-
-                  }
+            	   	const uint32_t ul_attribute)
+{
+	p_pio->PIO_ODR	 = ul_mask;        // Desativa saída                   (Output DISABLE register)
+	p_pio->PIO_PER	 = ul_mask;        // Ativa controle do pino no PIO    (PIO ENABLE register)
+	p_pio->PIO_IFER	 = ul_mask;        // Ativa debouncing
+	p_pio->PIO_IFSCER  = ul_mask;      // Ativa clock periferico
+	p_pio->PIO_SCDR	 = ul_mask;		   // Configura a frequencia do debouncing
+}
 
 /**
  * \brief Configure PIO internal pull-up.
@@ -66,7 +68,7 @@ void _pio_pull_up(	Pio *p_pio,
  * \param ul_pull_down_enable Indicates if the pin(s) internal pull-down shall
  * be configured.
  */
-void pio_pull_down(Pio *p_pio, const uint32_t ul_mask,
+void _pio_pull_down(Pio *p_pio, const uint32_t ul_mask,
 		const uint32_t ul_pull_down_enable)
 {
 	/* Enable the pull-down if necessary */
@@ -85,7 +87,7 @@ void pio_pull_down(Pio *p_pio, const uint32_t ul_mask,
  * \param p_pio Pointer to a PIO instance.
  * \param ul_mask Bitmask of one or more pin(s) to configure.
  */
-void pio_set(Pio *p_pio, const uint32_t ul_mask)
+void _pio_set(Pio *p_pio, const uint32_t ul_mask)
 {
 	p_pio->PIO_SODR = ul_mask;
 }
@@ -98,7 +100,7 @@ void pio_set(Pio *p_pio, const uint32_t ul_mask)
  * \param p_pio Pointer to a PIO instance.
  * \param ul_mask Bitmask of one or more pin(s) to configure.
  */
-void pio_clear(Pio *p_pio, const uint32_t ul_mask)
+void _pio_clear(Pio *p_pio, const uint32_t ul_mask)
 {
 	p_pio->PIO_CODR = ul_mask;
 }
@@ -114,7 +116,7 @@ void pio_clear(Pio *p_pio, const uint32_t ul_mask)
  * \retval 1 At least one PIO is configured to output a high level.
  * \retval 0 All PIOs are configured to output a low level.
  */
-uint32_t pio_get_output_data_status(const Pio *p_pio,
+uint32_t _pio_get_output_data_status(const Pio *p_pio,
 		const uint32_t ul_mask)
 {
 	if ((p_pio->PIO_ODSR & ul_mask) == 0) {
