@@ -34,12 +34,12 @@
 #define L2_PIO_ID		ID_PIOC
 #define L2_PIO			PIOC
 #define L2_PIN		    30
-#define L2_PIN_MASK    (1<<LED_PIN)
+#define L2_PIN_MASK    (1<<L2_PIN)
 
 #define L3_PIO_ID		ID_PIOB
 #define L3_PIO			PIOB
 #define L3_PIN		    2
-#define L3_PIN_MASK    (1<<LED_PIN)
+#define L3_PIN_MASK    (1<<L3_PIN)
 
 
 
@@ -71,14 +71,26 @@
 /* prototype                                                             */
 /************************************************************************/
 void led1_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_mask);
-void but_init(int32_t pio_id, Pio *but_pio, const uint32_t pin_mask);
-void but1_Handler();
+void but_init(int32_t pio_id, Pio *but_pio, const uint32_t pin_mask, void(*handler)(uint32_t, uint32_t));
+
 void but_Handler();
+void but1_Handler();
+void but2_Handler();
+void but3_Handler();
+
 /************************************************************************/
 /* Interrupçcões                                                        */
 /************************************************************************/
 
+int flag_handler = 0;
+
+
 void but_Handler(){
+    /*
+     *  prepara a flag para piscar o LED
+     */
+	flag_handler = 1;
+
     /*
      *  limpa interrupcao do PIO
      */
@@ -92,15 +104,14 @@ void but_Handler(){
     pio_clear(LED_PIO, LED_PIN_MASK);
    else
     pio_set(LED_PIO,LED_PIN_MASK);
-    
-	
-	  if(pio_get_output_data_status(L1_PIO, L1_PIN_MASK))
-	  pio_clear(L1_PIO, L1_PIN_MASK);
-	  else
-	  pio_set(L1_PIO,L1_PIN_MASK);
 }
 
 void but1_Handler(){
+    /*
+     *  prepara a flag para piscar o LED
+     */
+	flag_handler = 1;
+	
     /*
      *  limpa interrupcao do PIO
      */
@@ -117,6 +128,50 @@ void but1_Handler(){
     
 }
 
+void but2_Handler(){
+    /*
+     *  prepara a flag para piscar o LED
+     */
+	flag_handler = 1;
+	
+    /*
+     *  limpa interrupcao do PIO
+     */
+    uint32_t pioIntStatus;
+    pioIntStatus =  pio_get_interrupt_status(B2_PIO);
+    
+   /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(L2_PIO, L2_PIN_MASK))
+    pio_clear(L2_PIO, L2_PIN_MASK);
+   else
+    pio_set(L2_PIO,L2_PIN_MASK);
+    
+}
+
+void but3_Handler(){
+    /*
+     *  prepara a flag para piscar o LED
+     */
+	flag_handler = 1;
+	
+    /*
+     *  limpa interrupcao do PIO
+     */
+    uint32_t pioIntStatus;
+    pioIntStatus =  pio_get_interrupt_status(B3_PIO);
+    
+   /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(L3_PIO, L3_PIN_MASK))
+    pio_clear(L3_PIO, L3_PIN_MASK);
+   else
+    pio_set(L3_PIO,L3_PIN_MASK);
+    
+}
+
 /************************************************************************/
 /* Funções	                                                            */
 /************************************************************************/
@@ -126,7 +181,7 @@ void but1_Handler(){
  */
 void led_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_mask){
 	pmc_enable_periph_clk(led_pio_id);
-	pio_set_output(led_pio, pin_mask, 1, 0, 0 );
+	pio_set_output(led_pio, pin_mask, estado, 0, 0 );
 };
 
 /**
@@ -134,7 +189,7 @@ void led_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_m
  *  config. botao em modo entrada enquanto 
  *  ativa e configura sua interrupcao.
  */
-void but_init(int32_t pio_id, Pio *pio, const uint32_t pin_mask){
+void but_init(int32_t pio_id, Pio *pio, const uint32_t pin_mask, void (*handler)(uint32_t, uint32_t)){
     /* config. pino botao em modo de entrada */
     pmc_enable_periph_clk(pio_id);
     pio_set_input(pio, pin_mask, PIO_PULLUP | PIO_DEBOUNCE);
@@ -142,7 +197,7 @@ void but_init(int32_t pio_id, Pio *pio, const uint32_t pin_mask){
     /* config. interrupcao em borda de descida no botao do kit */
     /* indica funcao (but_Handler) a ser chamada quando houver uma interrupção */
     pio_enable_interrupt(pio, pin_mask);
-    pio_handler_set(pio, pio_id, pin_mask, PIO_IT_FALL_EDGE, but_Handler);
+    pio_handler_set(pio, pio_id, pin_mask, PIO_IT_FALL_EDGE, (*handler));
     
     /* habilita interrupçcão do PIO que controla o botao */
     /* e configura sua prioridade                        */
@@ -150,6 +205,21 @@ void but_init(int32_t pio_id, Pio *pio, const uint32_t pin_mask){
     NVIC_SetPriority(pio_id, 1);
 };
 
+void led_blink_3s (){
+	int tc = 0;
+	for (int i=0;i < 3; i++){
+		pio_set(LED_PIO, LED_PIN_MASK);
+		while(tc<3000000){
+			tc++;
+		}
+		tc = 0;
+		pio_clear(LED_PIO, LED_PIN_MASK);
+		while(tc<3000000){
+			tc++;
+		}
+		tc = 0;
+	}
+}
 
 /************************************************************************/
 /* Main                                                                 */
@@ -167,14 +237,25 @@ int main(void)
 	/************************************************************************/
 	led_init(1, LED_PIO_ID, LED_PIO, LED_PIN_MASK);
 	led_init(1, L1_PIO_ID, L1_PIO, L1_PIN_MASK);
+	led_init(1, L2_PIO_ID, L2_PIO, L2_PIN_MASK);
+	led_init(1, L3_PIO_ID, L3_PIO, L3_PIN_MASK);
 
-    but_init(B1_PIO_ID, B1_PIO, B1_PIN_MASK);
+	but_init(BUT_PIO_ID, BUT_PIO, BUT_PIN_MASK, but_Handler);
+	but_init(B1_PIO_ID, B1_PIO, B1_PIN_MASK, but1_Handler);
+	but_init(B2_PIO_ID, B2_PIO, B2_PIN_MASK, but2_Handler);
+    but_init(B3_PIO_ID, B3_PIO, B3_PIN_MASK, but3_Handler);
 	/************************************************************************/
 	/* Super loop                                                           */
 	/************************************************************************/
 	while(1){
        /* entra em modo sleep */
-       //pmc_sleep(SLEEPMGR_SLEEP_WFI);
+       pmc_sleep(SLEEPMGR_SLEEP_WFI);
+	   
+	   
+	   if(flag_handler == 1){
+		   led_blink_3s();
+		   flag_handler = 0;
+	   }
 	};
 }
 

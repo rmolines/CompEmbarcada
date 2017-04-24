@@ -56,13 +56,9 @@ void led_init(int estado){
  * @Brief Inicializa o pino do BUT
  */
 void but_init(void){
-	PMC->PMC_PCER0       = (1<<BUT_PIO_ID);     // Ativa clock do periférico no PMC
-	BUT_PIO->PIO_ODR	 = BUT_PIN_MASK;        // Desativa saída                   (Output DISABLE register)
-	BUT_PIO->PIO_PER	 = BUT_PIN_MASK;        // Ativa controle do pino no PIO    (PIO ENABLE register)
-	BUT_PIO->PIO_PUER	 = BUT_PIN_MASK;        // Ativa pull-up no PIO             (PullUp ENABLE register)
-	BUT_PIO->PIO_IFER	 = BUT_PIN_MASK;        // Ativa debouncing
-	BUT_PIO->PIO_IFSCER  = BUT_PIN_MASK;        // Ativa clock periferico
-	BUT_PIO->PIO_SCDR	 = BUT_DEBOUNCING_VALUE;// Configura a frequencia do debouncing
+	_pmc_enable_periph_clock(BUT_PIO_ID)     // Ativa clock do periférico no PMC
+	_pio_set_input(BUT_PIO, BUT_PIN_MASK, 0);
+	_pio_pull_up(BUT_PIO, BUT_PIN_MASK, 1);
 };
 
 
@@ -96,12 +92,11 @@ int main(void)
 		* 1 : não apertado
 		* 0 : apertado
 		*/
-	    if(BUT_PIO->PIO_PDSR & (BUT_PIN_MASK)){
-			LED_PIO->PIO_CODR = LED_PIN_MASK;
-        }
-		else{
-			LED_PIO->PIO_SODR = LED_PIN_MASK;
-        }
+		if(_pio_get_output_data_status(BUT_PIO, BUT_PIN_MASK)){
+			_pio_set(BUT_PIO, BUT_PIN_MASK);
+		} else {
+			_pio_clear(BUT_PIO, BUT_PIN_MASK);
+		}
 	};
 }
 

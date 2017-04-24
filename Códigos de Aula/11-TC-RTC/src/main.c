@@ -4,18 +4,6 @@
 /* DEFINES                                                              */
 /************************************************************************/
 
-/**
- *  Informacoes para o RTC
- *  poderia ser extraida do __DATE__ e __TIME__
- *  ou ser atualizado pelo PC.
- */
-#define YEAR        2017
-#define MOUNTH      3
-#define DAY         27
-#define WEEK        13
-#define HOUR        9
-#define MINUTE      5
-#define SECOND      0
 
 /**
  * LEDs
@@ -25,8 +13,25 @@
 #define LED_PIN		    8
 #define LED_PIN_MASK    (1<<LED_PIN)
 
+#define L1_PIO_ID		ID_PIOA
+#define L1_PIO			PIOA
+#define L1_PIN		    0
+#define L1_PIN_MASK    (1<<L1_PIN)
+
+#define L2_PIO_ID		ID_PIOC
+#define L2_PIO			PIOC
+#define L2_PIN		    30
+#define L2_PIN_MASK    (1<<L2_PIN)
+
+#define L3_PIO_ID		ID_PIOB
+#define L3_PIO			PIOB
+#define L3_PIN		    2
+#define L3_PIN_MASK    (1<<L3_PIN)
+
+
+
 /**
- * Botão
+ * Botao
  */
 #define BUT_PIO_ID      ID_PIOA
 #define BUT_PIO         PIOA
@@ -34,10 +39,26 @@
 #define BUT_PIN_MASK    (1 << BUT_PIN)
 #define BUT_DEBOUNCING_VALUE  79
 
+#define B1_PIO_ID		ID_PIOD
+#define B1_PIO			PIOD
+#define B1_PIN		    28
+#define B1_PIN_MASK		(1 << B1_PIN)
+
+#define B2_PIO_ID		ID_PIOC
+#define B2_PIO			PIOC
+#define B2_PIN		    31
+#define B2_PIN_MASK		(1 << B2_PIN)
+
+#define B3_PIO_ID		ID_PIOA
+#define B3_PIO			PIOA
+#define B3_PIN		    19
+#define B3_PIN_MASK		(1 << B3_PIN)
+
 /************************************************************************/
 /* VAR globais                                                          */
 /************************************************************************/
 volatile uint8_t flag_led0 = 1;
+uint32_t hour, minute, second, year, month, day, week;
 
 
 /************************************************************************/
@@ -45,10 +66,11 @@ volatile uint8_t flag_led0 = 1;
 /************************************************************************/
 
 void BUT_init(void);
-void LED_init(int estado);
-void TC1_init(void);
+void LED_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_mask);
+void TC_init(Tc *TC, uint32_t ID_TC,  uint32_t channel, uint32_t freq);
 void RTC_init(void);
 void pin_toggle(Pio *pio, uint32_t mask);
+void flag_toggle(volatile uint8_t *flag);
 
 /************************************************************************/
 /* Handlers                                                             */
@@ -59,12 +81,28 @@ void pin_toggle(Pio *pio, uint32_t mask);
  */
 static void Button1_Handler(uint32_t id, uint32_t mask)
 {
-	
+
 }
 
 /**
  *  Interrupt handler for TC0 interrupt. 
  */
+void TC0_Handler(void){
+	volatile uint32_t ul_dummy;
+
+    /****************************************************************
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+    ******************************************************************/
+	ul_dummy = tc_get_status(TC0, 0);
+
+	/* Avoid compiler warning */
+	UNUSED(ul_dummy);
+
+	/** Muda o estado do LED */
+    if(flag_led0)
+        pin_toggle(LED_PIO, LED_PIN_MASK);
+}
+
 void TC1_Handler(void){
 	volatile uint32_t ul_dummy;
 
@@ -78,8 +116,41 @@ void TC1_Handler(void){
 
 	/** Muda o estado do LED */
     if(flag_led0)
-        pin_toggle(LED_PIO, LED_PIN_MASK);
+        pin_toggle(L1_PIO, L1_PIN_MASK);
 }
+
+void TC2_Handler(void){
+	volatile uint32_t ul_dummy;
+
+    /****************************************************************
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+    ******************************************************************/
+	ul_dummy = tc_get_status(TC0, 2);
+
+	/* Avoid compiler warning */
+	UNUSED(ul_dummy);
+
+	/** Muda o estado do LED */
+    if(flag_led0)
+        pin_toggle(L2_PIO, L2_PIN_MASK);
+}
+
+void TC3_Handler(void){
+	volatile uint32_t ul_dummy;
+
+    /****************************************************************
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+    ******************************************************************/
+	ul_dummy = tc_get_status(TC1, 0);
+
+	/* Avoid compiler warning */
+	UNUSED(ul_dummy);
+
+	/** Muda o estado do LED */
+    if(flag_led0)
+        pin_toggle(L3_PIO, L3_PIN_MASK);
+}
+
 
 /**
  * \brief Interrupt handler for the RTC. Refresh the display.
@@ -96,10 +167,32 @@ void RTC_Handler(void)
 	} else {
 		/* Time or date alarm */
 		if ((ul_status & RTC_SR_ALARM) == RTC_SR_ALARM) {
-            flag_led0 = 0;
-            
-           
+			
+			/* Inverte a flag */
+			flag_toggle(&flag_led0);     
+		 			
+		 	if (flag_led0){
+			 	tc_start(TC0, 0);
+			 	tc_start(TC1, 1);
+			 	tc_start(TC2, 2);
+			 	tc_start(TC3, 0);
+
+			 } else {			 
+			 	tc_stop(TC0, 0);
+			 	tc_stop(TC1, 1);
+			 	tc_stop(TC2, 2);
+			 	tc_stop(TC3, 0);
+ 			}
+ 			rtc_get_time(RTC, &hour, &minute, &second);
+			rtc_get_date(RTC, &year, &month, &day, &week);
+			second+=4;
+			rtc_set_date_alarm(RTC, 1, month, 1, year);
+ 			rtc_set_time_alarm(RTC, 1, hour, 1, minute, 1, second);
+	 	
 			rtc_clear_status(RTC, RTC_SCCR_ALRCLR);
+			
+			
+			
 		}
 	}
 }
@@ -117,6 +210,13 @@ void pin_toggle(Pio *pio, uint32_t mask){
     pio_clear(pio, mask);
    else
     pio_set(pio,mask);
+}
+
+/** 
+ *  Toggle flag controlado pelo usuario
+ */
+void flag_toggle(volatile uint8_t *flag){
+	*flag =! 1;
 }
 
 /**
@@ -141,36 +241,34 @@ void BUT_init(void){
 /**
  * @Brief Inicializa o pino do LED
  */
-void LED_init(int estado){
-    pmc_enable_periph_clk(LED_PIO_ID);
-    pio_set_output(LED_PIO, LED_PIN_MASK, estado, 0, 0 );
+void LED_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_mask){
+	pmc_enable_periph_clk(led_pio_id);
+	pio_set_output(led_pio, pin_mask, estado, 0, 0 );
 };
 
 /**
- * Configura TimerCounter (TC0) para gerar uma interrupcao no canal 0-(ID_TC1) 
- * a cada 250 ms (4Hz)
+ * Configura TimerCounter (TC) para gerar uma interrupcao no canal channel-(ID_TC) 
+ * a cada 1/freq (freq)
  */
-void TC1_init(void){   
+void TC_init(Tc *TC, uint32_t ID_TC,  uint32_t channel, uint32_t freq){   
     uint32_t ul_div;
     uint32_t ul_tcclks;
     uint32_t ul_sysclk = sysclk_get_cpu_hz();
-    
-    uint32_t channel = 1;
-    
+        
     /* Configura o PMC */
-    pmc_enable_periph_clk(ID_TC1);    
+    pmc_enable_periph_clk(ID_TC);    
 
-    /** Configura o TC para operar em  4Mhz e interrupçcão no RC compare */
-    tc_find_mck_divisor(4, ul_sysclk, &ul_div, &ul_tcclks, ul_sysclk);
-    tc_init(TC0, channel, ul_tcclks | TC_CMR_CPCTRG);
-    tc_write_rc(TC0, channel, (ul_sysclk / ul_div) / 4);
+    /** Configura o TC para operar em  freqMHz e interrupçcão no RC compare */
+    tc_find_mck_divisor(freq, ul_sysclk, &ul_div, &ul_tcclks, ul_sysclk);
+    tc_init(TC, channel, ul_tcclks | TC_CMR_CPCTRG);
+    tc_write_rc(TC, channel, (ul_sysclk / ul_div) / freq);
 
-    /* Configura e ativa interrupçcão no TC canal 0 */
-    NVIC_EnableIRQ((IRQn_Type) ID_TC1);
-    tc_enable_interrupt(TC0, channel, TC_IER_CPCS);
+    /* Configura e ativa interrupçcão no TC canal channel */
+    NVIC_EnableIRQ((IRQn_Type) ID_TC);
+    tc_enable_interrupt(TC, channel, TC_IER_CPCS);
 
-    /* Inicializa o canal 0 do TC */
-    tc_start(TC0, channel);
+    /* Inicializa o canal channel do TC */
+    tc_start(TC, channel);
 }
 
 /**
@@ -184,8 +282,8 @@ void RTC_init(){
     rtc_set_hour_mode(RTC, 0);
 
     /* Configura data e hora manualmente */
-    rtc_set_date(RTC, YEAR, MOUNTH, DAY, WEEK);
-    rtc_set_time(RTC, HOUR, MINUTE, SECOND);
+    rtc_set_date(RTC, year, month, day, week);
+    rtc_set_time(RTC, hour, minute, second);
 
     /* Configure RTC interrupts */
     NVIC_DisableIRQ(RTC_IRQn);
@@ -204,25 +302,35 @@ void RTC_init(){
 int main(void){
 	/* Initialize the SAM system */
 	sysclk_init();
+	
+	
+	rtc_get_time(RTC, &hour, &minute, &second);
+	rtc_get_date(RTC, &year, &month, &day, &week);
 
 	/* Disable the watchdog */
 	WDT->WDT_MR = WDT_MR_WDDIS;
 
     /* Configura Leds */
-    LED_init(0);
+    LED_init(0, LED_PIO_ID, LED_PIO, LED_PIN_MASK);
+    LED_init(0, L1_PIO_ID, L1_PIO, L1_PIN_MASK);
+    LED_init(0, L2_PIO_ID, L2_PIO, L2_PIN_MASK);
+    LED_init(0, L3_PIO_ID, L3_PIO, L3_PIN_MASK);
 	
 	/* Configura os botões */
 	BUT_init();    
     
     /** Configura timer 0 */
-    TC1_init();
+    TC_init(TC0, ID_TC0, 0, 4);
+    TC_init(TC0, ID_TC1, 1, 5);
+    TC_init(TC0, ID_TC2, 2, 6);
+    TC_init(TC1, ID_TC3, 0, 7);
     
     /** Configura RTC */
     RTC_init();
 
-        /* configura alarme do RTC */    
-        rtc_set_date_alarm(RTC, 1, MOUNTH, 1, DAY);
-        rtc_set_time_alarm(RTC, 1, HOUR, 1, MINUTE+1, 1, SECOND);
+    /* configura alarme do RTC */
+    rtc_set_date_alarm(RTC, 1, month, 1, day);
+    rtc_set_time_alarm(RTC, 1, hour, 1, minute, 1, second+4);
 
           
 	while (1) {
