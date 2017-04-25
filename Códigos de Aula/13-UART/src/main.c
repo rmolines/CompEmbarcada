@@ -57,16 +57,15 @@ static void Button1_Handler(uint32_t id, uint32_t mask)
 }
 
 void USART1_Handler(void){
-  uint32_t ret = usart_get_status(USART_COM);
-  uint8_t  c;
-  
-  // Verifica por qual motivo entrou na interrupçcao
-  if(ret & US_IER_RXRDY){                     // Dado disponível para leitura
-    usart_serial_getchar(USART_COM, &c);
-    usart_puts(bufferTX);
-  } else if(ret & US_IER_TXRDY){              // Transmissão finalizada
-    
-  }
+	uint32_t ret = usart_get_status(USART_COM);
+	
+	// Verifica por qual motivo entrou na interrupçcao
+	if(ret & US_IER_RXRDY){ // Dado disponível para leitura
+		usart_gets(bufferRX);
+		usart_puts(bufferRX);
+	} else if(ret & US_IER_TXRDY){ // Transmissão finalizada
+		
+	}
 }
 
 
@@ -141,6 +140,10 @@ static void USART1_init(void){
   /* Enable the receiver and transmitter. */
 	usart_enable_tx(USART_COM);
 	usart_enable_rx(USART_COM);
+	
+  /*Enable interruption*/
+  usart_enable_interrupt(USART_COM, US_IER_RXRDY);
+  NVIC_EnableIRQ(USART_COM_ID);
  }
 
 /**
@@ -151,11 +154,13 @@ static void USART1_init(void){
  * Retorna a quantidade de char escritos
  */
 uint32_t usart_puts(uint8_t *pstring){
-  int i = 100;
-  
-  while (*(pstring+=i) != NULL){
-	  i++;
+  int i = 0;
+  while (*(pstring+i) != NULL){
+	  usart_serial_putchar(USART1, *(pstring+i));
+	  i++;	  
+	  while (uart_is_tx_empty(USART1) == 1){};
   }
+ 
   return 0;
 }
 
@@ -167,8 +172,15 @@ uint32_t usart_puts(uint8_t *pstring){
  * Retorna a quantidade de char lidos
  */
 uint32_t usart_gets(uint8_t *pstring){
-
-  return 0;  
+	int i = 0 ;
+	while (1){
+		usart_serial_getchar(USART1, (pstring+i));
+		if (*(pstring+i) == '\n'){
+			*(pstring+i+1) = NULL;
+			return i+1;
+		}	
+		i++;
+	}
 }
 
 /************************************************************************/
@@ -197,9 +209,8 @@ int main(void){
         
 	while (1) {
     sprintf(bufferTX, "%s \n", "Ola Voce");
-    usart_serial_putchar(USART1, 'a');
     usart_puts(bufferTX);
-   // usart_gets(bufferRX);
+    //usart_gets(bufferRX);
     delay_s(1);
 	}
 }
