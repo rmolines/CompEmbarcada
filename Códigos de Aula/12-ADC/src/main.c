@@ -7,6 +7,7 @@
  * do sensor de temperatura interno
  */
 
+
 /************************************************************************/
 /* Includes                                                             */
 /************************************************************************/
@@ -42,9 +43,40 @@ volatile uint32_t g_ul_value = 0;
 /* Canal do sensor de temperatura */
 #define AFEC_CHANNEL_TEMP_SENSOR 11
 
+/*Initial date*/
+#define YEAR   2017
+#define MONTH  4
+#define DAY    24
+#define WEEK   18
+#define HOUR   20
+#define MINUTE 38
+#define SECOND 0
+
+/************************************************************************/
+/* VAR globais                                                          */
+/************************************************************************/
+volatile uint8_t flag_led0 = 1;
+uint32_t hour, minute, second, year, month, day, week;
+
+/************************************************************************/
+/* PROTOTYPES                                                           */
+/************************************************************************/
+
+void TC_init(Tc *TC, uint32_t ID_TC,  uint32_t channel, uint32_t freq);
+void RTC_init(void);
+void flag_toggle(volatile uint8_t *flag);
+
+
 /************************************************************************/
 /* Funcoes                                                              */
 /************************************************************************/
+
+/** 
+ *  Toggle flag controlado pelo usuario
+ */
+void flag_toggle(volatile uint8_t *flag){
+	*flag =! 1;
+}
 
 /**
  * \brief Configure UART console.
@@ -89,6 +121,47 @@ static int32_t convert_adc_to_temp(int32_t ADC_value){
   return(ul_temp);
 }
 
+ /*
+ * Configura TimerCounter (TC) para gerar uma interrupcao no canal channel-(ID_TC)
+ * a cada 1/freq (freq)
+ */
+ void TC_init(Tc *TC, uint32_t ID_TC,  uint32_t channel, uint32_t freq){
+ uint32_t ul_div;
+ uint32_t ul_tcclks;
+ uint32_t ul_sysclk = sysclk_get_cpu_hz();
+ 
+ /* Configura o PMC */
+ pmc_enable_periph_clk(ID_TC);
+
+ /** Configura o TC para operar em  freqMHz e interrupçcão no RC compare */
+ tc_find_mck_divisor(freq, ul_sysclk, &ul_div, &ul_tcclks, ul_sysclk);
+ tc_init(TC, channel, ul_tcclks | TC_CMR_CPCTRG);
+ tc_write_rc(TC, channel, (ul_sysclk / ul_div) / freq);
+
+ /* Configura e ativa interrupçcão no TC canal channel */
+ NVIC_EnableIRQ((IRQn_Type) ID_TC);
+ tc_enable_interrupt(TC, channel, TC_IER_CPCS);
+
+ /* Inicializa o canal channel do TC */
+ tc_start(TC, channel);
+}
+
+/**
+ * Configura o RTC para funcionar com interrupcao de alarme
+ */
+void RTC_init(){
+    /* Configura o PMC */
+    pmc_enable_periph_clk(ID_RTC);
+        
+    /* Default RTC configuration, 24-hour mode */
+    rtc_set_hour_mode(RTC, 0);
+
+    /* Configura data e hora manualmente */
+    rtc_set_date(RTC, YEAR, MONTH, DAY, WEEK);
+    rtc_set_time(RTC, HOUR, MINUTE, SECOND);
+    
+}
+
 /************************************************************************/
 /* Call backs / Handler                                                 */
 /************************************************************************/
@@ -101,6 +174,38 @@ static void AFEC_Temp_callback(void)
 	g_ul_value = afec_channel_get_value(AFEC0, AFEC_CHANNEL_TEMP_SENSOR);
 	is_conversion_done = true;
 }
+
+/**
+ *  Interrupt handler for TC0 interrupt. 
+ */
+void TC0_Handler(void){
+	volatile uint32_t ul_dummy;
+
+    /****************************************************************
+	* Devemos indicar ao TC que a interrupção foi satisfeita.
+    ******************************************************************/
+	ul_dummy = tc_get_status(TC0, 0);
+
+	/* Avoid compiler warning */
+	UNUSED(ul_dummy);
+	
+	
+	rtc_get_date(RTC, &year, &month, &day, &week);
+	rtc_get_time(RTC, &hour, &minute, &second);
+
+	printf("%02d/%02d/%04d - %02d:%02d:%02d - Temp : %dºC \r\n",
+	day,
+	month,
+	year,
+	hour,
+	minute,
+	second,
+	(uint32_t) convert_adc_to_temp(g_ul_value));
+	afec_start_software_conversion(AFEC0);
+
+}
+
+
 
 /************************************************************************/
 /* Main                                                                 */
@@ -117,6 +222,9 @@ int main(void)
 	sysclk_init();
   ioport_init();
   board_init();
+  
+	/* Disable the watchdog */
+	WDT->WDT_MR = WDT_MR_WDDIS;
   
   /* inicializa delay */
   delay_init(sysclk_get_cpu_hz());
@@ -171,14 +279,34 @@ int main(void)
   /* Selecina canal e inicializa conversão */  
 	afec_channel_enable(AFEC0, AFEC_CHANNEL_TEMP_SENSOR);
   afec_start_software_conversion(AFEC0);
+  
+  	rtc_get_time(RTC, &hour, &minute, &second);
+  	rtc_get_date(RTC, &year, &month, &day, &week);
+  
+  
+	/** Configura RTC */
+	RTC_init();
+	  
+	/** Configura timer 0 */
+	TC_init(TC0, ID_TC0, 0, 1);
 
+
+	printf("%02d:%02d:%02d\r\n",
+	hour,
+	minute,
+	second);	//afec_start_software_conversion(AFEC0);
+		
+	/* configura alarme do RTC */
+	rtc_set_date_alarm(RTC, 0, month, 0, day);
+	rtc_set_time_alarm(RTC, 0, hour, 0, minute, 1, second);
+	
 	while (1) {
-		if(is_conversion_done == true) {
-			is_conversion_done = false;
-      
-      printf("Temp : ????? \r\n", (int) temp );
-      afec_start_software_conversion(AFEC0);
-      delay_s(1);
-		}
+		//if(is_conversion_done == true) {
+			//is_conversion_done = false;
+			
+			//printf("Temp : ????? \r\n", (uint32_t) convert_adc_to_temp(g_ul_value));
+			//afec_start_software_conversion(AFEC0);
+			//delay_s(1);
+		//}
 	}
 }

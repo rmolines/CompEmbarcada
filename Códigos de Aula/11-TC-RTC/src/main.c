@@ -183,14 +183,12 @@ void RTC_Handler(void)
 			 	tc_stop(TC2, 2);
 			 	tc_stop(TC3, 0);
  			}
- 			rtc_get_time(RTC, &hour, &minute, &second);
-			rtc_get_date(RTC, &year, &month, &day, &week);
-			second+=4;
-			rtc_set_date_alarm(RTC, 1, month, 1, year);
- 			rtc_set_time_alarm(RTC, 1, hour, 1, minute, 1, second);
 	 	
-			rtc_clear_status(RTC, RTC_SCCR_ALRCLR);
+			uint32_t hour, minute, second;
+			rtc_get_time(RTC, &hour, &minute, &second);		
 			
+			rtc_set_time_alarm(RTC, 0, hour, 1, minute + 1, 0, second);
+	
 			
 			
 		}
