@@ -177,6 +177,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 			if (gbTcpConnection) {
 				memset(gau8ReceivedBuffer, 0, sizeof(gau8ReceivedBuffer));
 				sprintf((char *)gau8ReceivedBuffer, "%s%s%s", MAIN_PREFIX_BUFFER, (char *)MAIN_CITY_NAME, MAIN_POST_BUFFER);
+				//sprintf((char *)gau8ReceivedBuffer, "%s%s%s", SECONDARY_PREFIX_BUFFER);
 
 				tstrSocketConnectMsg *pstrConnect = (tstrSocketConnectMsg *)pvMsg;
 				if (pstrConnect && pstrConnect->s8Error >= SOCK_ERR_NO_ERROR) {
