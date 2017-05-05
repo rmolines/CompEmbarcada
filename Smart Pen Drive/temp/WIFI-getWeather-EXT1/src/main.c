@@ -120,7 +120,7 @@ static bool gbHostIpByName = false;
 static bool gbTcpConnection = false;
 
 /** Server host name. */
-static char server_host_name[] = MAIN_WEATHER_SERVER_NAME;
+static char server_host_name[] = MAIN_CLOUD_SERVER;
 
 
 
@@ -153,6 +153,7 @@ static void configure_console(void)
 static void resolve_cb(uint8_t *hostName, uint32_t hostIp)
 {
 	gu32HostIp = hostIp;
+	printf("HOST IP : 0x%X", hostIp);
 	gbHostIpByName = true;
 	printf("resolve_cb: %s IP address is %d.%d.%d.%d\r\n\r\n", hostName,
 			(int)IPV4_BYTE(hostIp, 0), (int)IPV4_BYTE(hostIp, 1),
@@ -177,7 +178,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 		{
 			if (gbTcpConnection) {
 				memset(gau8ReceivedBuffer, 0, sizeof(gau8ReceivedBuffer));
-				sprintf((char *)gau8ReceivedBuffer, "%s%s%s", MAIN_PREFIX_BUFFER, (char *)MAIN_CITY_NAME, MAIN_POST_BUFFER);
+				sprintf((char *)gau8ReceivedBuffer, "%s", MAIN_PREFIX_BUFFER);
 
 				tstrSocketConnectMsg *pstrConnect = (tstrSocketConnectMsg *)pvMsg;
 				if (pstrConnect && pstrConnect->s8Error >= SOCK_ERR_NO_ERROR) {
@@ -202,57 +203,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 
 			tstrSocketRecvMsg *pstrRecv = (tstrSocketRecvMsg *)pvMsg;
 			if (pstrRecv && pstrRecv->s16BufferSize > 0) {
-
-				/* Get city name. */
-				pcIndxPtr = strstr((char *)pstrRecv->pu8Buffer, "name=");
-				printf("City: ");
-				if (NULL != pcIndxPtr) {
-					pcIndxPtr = pcIndxPtr + strlen("name=") + 1;
-					pcEndPtr = strstr(pcIndxPtr, "\">");
-					if (NULL != pcEndPtr) {
-						*pcEndPtr = 0;
-					}
-
-					printf("%s\r\n", pcIndxPtr);
-				} else {
-					printf("N/A\r\n");
-					break;
-				}
-
-				/* Get temperature. */
-				pcIndxPtr = strstr(pcEndPtr + 1, "temperature value");
-				printf("Temperature: ");
-				if (NULL != pcIndxPtr) {
-					pcIndxPtr = pcIndxPtr + strlen("temperature value") + 2;
-					pcEndPtr = strstr(pcIndxPtr, "\" ");
-					if (NULL != pcEndPtr) {
-						*pcEndPtr = 0;
-					}
-
-					printf("%s\r\n", pcIndxPtr);
-				} else {
-					printf("N/A\r\n");
-					break;
-				}
-
-				/* Get weather condition. */
-				pcIndxPtr = strstr(pcEndPtr + 1, "weather number");
-				if (NULL != pcIndxPtr) {
-					printf("Weather Condition: ");
-					pcIndxPtr = pcIndxPtr + strlen("weather number") + 14;
-					pcEndPtr = strstr(pcIndxPtr, "\" ");
-					if (NULL != pcEndPtr) {
-						*pcEndPtr = 0;
-					}
-					printf("%s\r\n", pcIndxPtr);
-					
-					/* Response processed, now close connection. */
-					close(tcp_client_socket);
-					tcp_client_socket = -1;
-					ioport_set_pin_level(LED_0_PIN, false);
-					break;
-				}
-
+				printf(pstrRecv->pu8Buffer);
 				memset(gau8ReceivedBuffer, 0, sizeof(gau8ReceivedBuffer));
 				recv(tcp_client_socket, &gau8ReceivedBuffer[0], MAIN_WIFI_M2M_BUFFER_SIZE, 0);
 			} else {
@@ -315,7 +266,7 @@ static void wifi_cb(uint8_t u8MsgType, void *pvMsg)
 				pu8IPAddress[0], pu8IPAddress[1], pu8IPAddress[2], pu8IPAddress[3]);
 		gbConnectedWifi = true;
 		/* Obtain the IP Address by network name */
-		gethostbyname((uint8_t *)server_host_name);
+		//gethostbyname((uint8_t *)server_host_name);
 		break;
 	}
 
@@ -418,7 +369,7 @@ int main(void)
 				/* Connect TCP client socket. */
 				addr_in.sin_family = AF_INET;
 				addr_in.sin_port = _htons(MAIN_SERVER_PORT);
-				addr_in.sin_addr.s_addr = gu32HostIp;
+				addr_in.sin_addr.s_addr = 0X0BC20601;
 				if (connect(tcp_client_socket, (struct sockaddr *)&addr_in, sizeof(struct sockaddr_in)) != SOCK_ERR_NO_ERROR) {
 					printf("main: failed to connect socket error!\r\n");
 					continue;

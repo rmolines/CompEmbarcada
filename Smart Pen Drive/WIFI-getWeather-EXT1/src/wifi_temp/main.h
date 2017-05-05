@@ -66,8 +66,6 @@ extern "C" {
 /** Send buffer of TCP socket. */
 #define MAIN_PREFIX_BUFFER                  "GET /data/2.5/weather?q="
 #define MAIN_POST_BUFFER                    "&appid=c592e14137c3471fa9627b44f6649db4&mode=xml&units=metric HTTP/1.1\r\nHost: api.openweathermap.org\r\nAccept: */*\r\n\r\n"
-#define SECONDARY_PREFIX_BUFFER				"GET /static/
-"
 /** Weather information provider server. */
 #define MAIN_WEATHER_SERVER_NAME            "api.openweathermap.org"
 

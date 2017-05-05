@@ -835,7 +835,6 @@
     <Folder Include="src\ASF\thirdparty\fatfs\fatfs-r0.09\src\" />
     <Folder Include="src\ASF\thirdparty\fatfs\fatfs-r0.09\src\option\" />
     <Folder Include="src\config\" />
-    <Folder Include="src\sd_temp\" />
     <Folder Include="src\wifi_temp\" />
   </ItemGroup>
   <ItemGroup>
@@ -854,13 +853,7 @@
     <Compile Include="src\ASF\common\components\memory\sd_mmc\sd_mmc_mem.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="src\example.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\sd_temp\asf.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="src\sd_temp\example.c">
+    <Compile Include="src\main.c">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="src\wifi_temp\asf.h">

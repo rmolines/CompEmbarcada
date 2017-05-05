@@ -58,21 +58,16 @@ extern "C" {
 #define MAIN_MAC_ADDRESS                     {0xf8, 0xf0, 0x05, 0x45, 0xD4, 0x84}
 
 /** Using broadcast address for simplicity. */
-#define MAIN_SERVER_PORT                    (80)
+#define MAIN_SERVER_PORT                    (8081)
 
 /** IP address parsing. */
 #define IPV4_BYTE(val, index)               ((val >> (index * 8)) & 0xFF)
 
 /** Send buffer of TCP socket. */
-#define MAIN_PREFIX_BUFFER                  "GET /data/2.5/weather?q="
-#define MAIN_POST_BUFFER                    "&appid=c592e14137c3471fa9627b44f6649db4&mode=xml&units=metric HTTP/1.1\r\nHost: api.openweathermap.org\r\nAccept: */*\r\n\r\n"
+#define MAIN_PREFIX_BUFFER                  "GET /static/text/teste.txt"
 
 /** Weather information provider server. */
-#define MAIN_WEATHER_SERVER_NAME            "api.openweathermap.org"
-#define MAIN_CLOUD_SERVER					"https://localhost:8081"
-
-/** Input City Name. */
-#define MAIN_CITY_NAME                      "SãoPaulo"
+#define MAIN_CLOUD_SERVER					"172.20.10.7"
 
 /** Receive buffer size. */
 #define MAIN_WIFI_M2M_BUFFER_SIZE           1400

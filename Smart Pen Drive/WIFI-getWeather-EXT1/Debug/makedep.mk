@@ -6,9 +6,7 @@ src\ASF\common\components\memory\sd_mmc\sd_mmc.c
 
 src\ASF\common\components\memory\sd_mmc\sd_mmc_mem.c
 
-src\example.c
-
-src\sd_temp\example.c
+src\main.c
 
 src\wifi_temp\main.c
 
