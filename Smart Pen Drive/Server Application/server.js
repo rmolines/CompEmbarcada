@@ -8,7 +8,7 @@ app.use('/static', express.static('public'))
 
 app.get('/', function (req, res) {
   //res.writeHead(200, {'Content-Type': ''text/event-stream''});
-   res.send('1234567');
+   res.send('akaOlá, aula do Rafael.');
 })
 
 var server = app.listen(8081, function () {
