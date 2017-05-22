@@ -5,6 +5,14 @@
 /************************************************************************/
 
 
+#define YEAR        2017
+#define MONTH      5
+#define DAY         22
+#define WEEK        17
+#define HOUR        16
+#define MINUTE      38
+#define SECOND      0
+
 /**
  * LEDs
  */
@@ -65,7 +73,7 @@ uint32_t hour, minute, second, year, month, day, week;
 /* PROTOTYPES                                                           */
 /************************************************************************/
 
-void BUT_init(void);
+void BUT_init(Pio *pio, uint32_t pio_id, uint32_t pin_mask, void *handler);
 void LED_init(int estado, int32_t led_pio_id, Pio *led_pio, const uint32_t pin_mask);
 void TC_init(Tc *TC, uint32_t ID_TC,  uint32_t channel, uint32_t freq);
 void RTC_init(void);
@@ -79,9 +87,60 @@ void flag_toggle(volatile uint8_t *flag);
 /**
  *  Handle Interrupcao botao 1
  */
+static void Button0_Handler(uint32_t id, uint32_t mask)
+{
+    /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(LED_PIO,LED_PIN_MASK)) {
+    pio_clear(LED_PIO, LED_PIN_MASK);
+    tc_start(TC0, 0);
+   } else {
+    pio_set(LED_PIO,LED_PIN_MASK);
+	tc_stop(TC0, 0);
+   }
+}
+
 static void Button1_Handler(uint32_t id, uint32_t mask)
 {
+    /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(L1_PIO, L1_PIN_MASK)) {
+    pio_clear(L1_PIO, L1_PIN_MASK);
+    tc_start(TC0, 1);
+   } else {
+    pio_set(L1_PIO,L1_PIN_MASK);
+	tc_stop(TC0, 1);
+   }
+}
 
+static void Button2_Handler(uint32_t id, uint32_t mask)
+{
+    /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(L2_PIO, L2_PIN_MASK)) {
+    pio_clear(L2_PIO, L2_PIN_MASK);
+    tc_start(TC0, 2);
+   } else {
+    pio_set(L2_PIO,L2_PIN_MASK);
+	tc_stop(TC0, 2);
+   }
+}
+
+static void Button3_Handler(uint32_t id, uint32_t mask)
+{
+    /**
+    *  Toggle status led
+    */
+   if(pio_get_output_data_status(L3_PIO, L3_PIN_MASK)) {
+    pio_clear(L3_PIO, L3_PIN_MASK);
+    tc_start(TC1, 0);
+   } else {
+    pio_set(L3_PIO,L3_PIN_MASK);
+	tc_stop(TC1, 0);
+   }
 }
 
 /**
@@ -115,8 +174,7 @@ void TC1_Handler(void){
 	UNUSED(ul_dummy);
 
 	/** Muda o estado do LED */
-    if(flag_led0)
-        pin_toggle(L1_PIO, L1_PIN_MASK);
+    pin_toggle(L1_PIO, L1_PIN_MASK);
 }
 
 void TC2_Handler(void){
@@ -170,7 +228,17 @@ void RTC_Handler(void)
 			
 			/* Inverte a flag */
 			flag_toggle(&flag_led0);     
-		 			
+			
+			/*Atuliza o tempo*/
+			uint32_t hour, minute, second, year, month, day;
+			rtc_get_time(RTC, &hour, &minute, &second);			
+			rtc_get_date(RTC, &year, &month, &day, NULL);
+
+		 	
+		 	/* Configura novo alarme do RTC */
+		 	rtc_set_date_alarm(RTC, 1, month, 1, day);
+		 	rtc_set_time_alarm(RTC, 1, hour, 1, minute+1, 1, second);
+			 
 		 	if (flag_led0){
 			 	tc_start(TC0, 0);
 			 	tc_start(TC1, 1);
@@ -182,15 +250,8 @@ void RTC_Handler(void)
 			 	tc_stop(TC1, 1);
 			 	tc_stop(TC2, 2);
 			 	tc_stop(TC3, 0);
- 			}
-	 	
-			uint32_t hour, minute, second;
-			rtc_get_time(RTC, &hour, &minute, &second);		
-			
-			rtc_set_time_alarm(RTC, 0, hour, 1, minute + 1, 0, second);
-	
-			
-			
+ 			}	
+			rtc_clear_status(RTC, RTC_SCCR_ALRCLR);
 		}
 	}
 }
@@ -220,20 +281,20 @@ void flag_toggle(volatile uint8_t *flag){
 /**
  * @Brief Inicializa o pino do BUT
  */
-void BUT_init(void){
+void BUT_init(Pio *pio, uint32_t pio_id, uint32_t pin_mask, void *handler){
     /* config. pino botao em modo de entrada */
-    pmc_enable_periph_clk(BUT_PIO_ID);
-    pio_set_input(BUT_PIO, BUT_PIN_MASK, PIO_PULLUP | PIO_DEBOUNCE);
+    pmc_enable_periph_clk(pio_id);
+    pio_set_input(pio, pin_mask, PIO_PULLUP | PIO_DEBOUNCE);
     
     /* config. interrupcao em borda de descida no botao do kit */
     /* indica funcao (but_Handler) a ser chamada quando houver uma interrupção */
-    pio_enable_interrupt(BUT_PIO, BUT_PIN_MASK);
-    pio_handler_set(BUT_PIO, BUT_PIO_ID, BUT_PIN_MASK, PIO_IT_FALL_EDGE, Button1_Handler);
+    pio_enable_interrupt(pio, pin_mask);
+    pio_handler_set(pio, pio_id, pin_mask, PIO_IT_FALL_EDGE, handler);
     
     /* habilita interrupçcão do PIO que controla o botao */
     /* e configura sua prioridade                        */
-    NVIC_EnableIRQ(BUT_PIO_ID);
-    NVIC_SetPriority(BUT_PIO_ID, 1);
+    NVIC_EnableIRQ(pio_id);
+    NVIC_SetPriority(pio_id, 1);
 };
 
 /**
@@ -280,8 +341,8 @@ void RTC_init(){
     rtc_set_hour_mode(RTC, 0);
 
     /* Configura data e hora manualmente */
-    rtc_set_date(RTC, year, month, day, week);
-    rtc_set_time(RTC, hour, minute, second);
+    rtc_set_date(RTC, YEAR, MONTH, DAY, WEEK);
+    rtc_set_time(RTC, HOUR, MINUTE, SECOND);
 
     /* Configure RTC interrupts */
     NVIC_DisableIRQ(RTC_IRQn);
@@ -300,10 +361,6 @@ void RTC_init(){
 int main(void){
 	/* Initialize the SAM system */
 	sysclk_init();
-	
-	
-	rtc_get_time(RTC, &hour, &minute, &second);
-	rtc_get_date(RTC, &year, &month, &day, &week);
 
 	/* Disable the watchdog */
 	WDT->WDT_MR = WDT_MR_WDDIS;
@@ -315,13 +372,16 @@ int main(void){
     LED_init(0, L3_PIO_ID, L3_PIO, L3_PIN_MASK);
 	
 	/* Configura os botões */
-	BUT_init();    
+	BUT_init(BUT_PIO, BUT_PIO_ID, BUT_PIN_MASK, Button0_Handler);
+	BUT_init(B1_PIO, B1_PIO_ID, B1_PIN_MASK, Button1_Handler);
+	BUT_init(B2_PIO, B2_PIO_ID, B2_PIN_MASK, Button2_Handler);
+	BUT_init(B3_PIO, B3_PIO_ID, B3_PIN_MASK, Button3_Handler);
     
     /** Configura timer 0 */
     TC_init(TC0, ID_TC0, 0, 4);
-    TC_init(TC0, ID_TC1, 1, 5);
-    TC_init(TC0, ID_TC2, 2, 6);
-    TC_init(TC1, ID_TC3, 0, 7);
+    TC_init(TC0, ID_TC1, 1, 8);
+    TC_init(TC0, ID_TC2, 2, 11);
+    TC_init(TC1, ID_TC3, 0, 17);
     
     /** Configura RTC */
     RTC_init();
