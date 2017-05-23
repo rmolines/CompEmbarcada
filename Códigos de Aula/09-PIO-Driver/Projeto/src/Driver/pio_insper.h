@@ -48,6 +48,9 @@
 /*  The internal debouncing filter is active. */
 #define PIO_DEBOUNCE            (1u << 3)
 
+#define BUT_DEBOUNCING_VALUE  79
+
+
 
 /*****************
  * PROTOTYPES

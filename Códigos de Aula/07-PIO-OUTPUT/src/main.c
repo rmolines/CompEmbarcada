@@ -245,20 +245,12 @@ int main(void)
 	while(1){
 			PIOC->PIO_CODR =  (1 << 8);
 			
-			int i = 0;
-			
-			while(i<=50000000){
-				i++;
-			}
+			delay_ms(100);
 			
 			PIOC->PIO_SODR = (1 << 8);
 			
-			i = 0;
-			
-			while(i<=50000000){
-				i++;
-			}
-	};
+			delay_ms(100);
+	}
 }
 
 

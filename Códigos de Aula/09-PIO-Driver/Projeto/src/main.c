@@ -56,9 +56,10 @@ void led_init(int estado){
  * @Brief Inicializa o pino do BUT
  */
 void but_init(void){
-	_pmc_enable_periph_clock(BUT_PIO_ID)     // Ativa clock do periférico no PMC
-	_pio_set_input(BUT_PIO, BUT_PIN_MASK, 0);
+	_pmc_enable_periph_clock(BUT_PIO_ID);    // Ativa clock do periférico no PMC
+	_pio_set_input(BUT_PIO,BUT_PIN_MASK, PIO_DEBOUNCE | PIO_PULLUP);
 	_pio_pull_up(BUT_PIO, BUT_PIN_MASK, 1);
+	BUT_PIO->PIO_SCDR	 = BUT_DEBOUNCING_VALUE;// Configura a frequencia do debouncing
 };
 
 
@@ -93,9 +94,9 @@ int main(void)
 		* 0 : apertado
 		*/
 		if(_pio_get_output_data_status(BUT_PIO, BUT_PIN_MASK)){
-			_pio_set(BUT_PIO, BUT_PIN_MASK);
+			_pio_set(LED_PIO, LED_PIN_MASK);
 		} else {
-			_pio_clear(BUT_PIO, BUT_PIN_MASK);
+			_pio_clear(LED_PIO, LED_PIN_MASK);
 		}
 	};
 }

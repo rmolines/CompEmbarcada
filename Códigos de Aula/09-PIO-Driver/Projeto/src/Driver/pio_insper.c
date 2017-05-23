@@ -1,24 +1,33 @@
 #include "pio_insper.h"
 
-void _pio_set_output(	Pio *p_pio,
-                    	const uint32_t ul_mask,
-		       	const uint32_t ul_default_level,
-		       	const uint32_t ul_pull_up_enable){
-              p_pio->PIO_PER  = ul_mask;           // Ativa controle do pino no PIO    (PIO ENABLE register)
-            	p_pio->PIO_OER  = ul_mask;           // Ativa saída                      (Output ENABLE register)
 
-              if(!ul_default_level)                                 // Checa pela inicialização desejada
-          	    p_pio->PIO_CODR = ul_mask;       // Coloca 0 na saída                (CLEAR Output Data register)
-              else
-                p_pio->PIO_SODR = ul_mask;       // Coloca 1 na saída                (SET Output Data register)
+/**
+ * \brief Configure one or more pin(s) of a PIO controller as outputs, with
+ * the given default value. 
+ *
+ * \param p_pio Pointer to a PIO instance.
+ * \param ul_mask Bitmask indicating which pin(s) to configure.
+ * \param ul_default_level Default level on the pin(s).
+ * \param ul_pull_up_enable Indicates if the pin shall have its pull-up
+ * activated.
+ */
+void _pio_set_output(Pio *p_pio, const uint32_t ul_mask,
+const uint32_t ul_default_level,
+const uint32_t ul_pull_up_enable)
+{
+	_pio_pull_up(p_pio, ul_mask, ul_pull_up_enable);
 
-              if (ul_pull_up_enable){
-                p_pio->PIO_PUER	 = ul_mask;        // Ativa pull-up no PIO             (PullUp ENABLE register)
-              }else{
-                p_pio->PIO_PUDR = ul_mask;
-              }
-            }
+	/* Set default value */
+	if (ul_default_level) {
+		p_pio->PIO_SODR = ul_mask;
+		} else {
+		p_pio->PIO_CODR = ul_mask;
+	}
 
+	/* Configure pin(s) as output(s) */
+	p_pio->PIO_OER = ul_mask;
+	p_pio->PIO_PER = ul_mask;
+}
 
 /**
  * \brief Configure one or more pin(s) or a PIO controller as inputs.
@@ -31,13 +40,29 @@ void _pio_set_output(	Pio *p_pio,
  */
 void _pio_set_input( 	Pio *p_pio,
                     	const uint32_t ul_mask,
-            	   	const uint32_t ul_attribute)
-{
-	p_pio->PIO_ODR	 = ul_mask;        // Desativa saída                   (Output DISABLE register)
-	p_pio->PIO_PER	 = ul_mask;        // Ativa controle do pino no PIO    (PIO ENABLE register)
-	p_pio->PIO_IFER	 = ul_mask;        // Ativa debouncing
-	p_pio->PIO_IFSCER  = ul_mask;      // Ativa clock periferico
-	p_pio->PIO_SCDR	 = ul_mask;		   // Configura a frequencia do debouncing
+            	   	const uint32_t ul_attribute) {
+					   
+	_pio_pull_up(p_pio, ul_mask, ul_attribute & PIO_PULLUP);
+
+	/* Enable Input Filter if necessary */
+	if (ul_attribute & (PIO_DEGLITCH | PIO_DEBOUNCE)) {
+		p_pio->PIO_IFER = ul_mask;
+		} else {
+		p_pio->PIO_IFDR = ul_mask;
+	}
+	
+	/* Enable de-glitch or de-bounce if necessary */
+	if (ul_attribute & PIO_DEGLITCH) {
+		p_pio->PIO_IFSCDR = ul_mask;
+		} else {
+		if (ul_attribute & PIO_DEBOUNCE) {
+			p_pio->PIO_IFSCER = ul_mask;
+		}
+	}
+	
+	/* Configure pin as input */
+	p_pio->PIO_ODR = ul_mask;
+	p_pio->PIO_PER = ul_mask;
 }
 
 /**
@@ -74,7 +99,7 @@ void _pio_pull_down(Pio *p_pio, const uint32_t ul_mask,
 	/* Enable the pull-down if necessary */
 	if (ul_pull_down_enable) {
 		p_pio->PIO_PPDER = ul_mask;
-	} else {
+		} else {
 		p_pio->PIO_PPDDR = ul_mask;
 	}
 }
@@ -121,7 +146,7 @@ uint32_t _pio_get_output_data_status(const Pio *p_pio,
 {
 	if ((p_pio->PIO_ODSR & ul_mask) == 0) {
 		return 0;
-	} else {
+		} else {
 		return 1;
 	}
 }
