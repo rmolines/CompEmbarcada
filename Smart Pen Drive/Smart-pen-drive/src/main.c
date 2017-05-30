@@ -23,7 +23,7 @@
 #define LED_PIN_MASK  (1<<LED_PIN)
 
 
-#define WIFI_EN
+#define WIFI_EN_N
 
 /************************************************************************/
 /*  Global vars                                                         */
@@ -120,18 +120,38 @@ uint8_t message_parsing(uint8_t *message){
   }      
 }
 
-uint8_t **info_parser (uint8_t *info, int size) {
-	int key = 0;
-	int collon = 0;
-	int counter = 0;
-	int counter2 = 0;
+uint8_t **info_parser (uint8_t *info, int size, uint8_t **file_names) {
+	int start = 0;
+	int temp_c = 0;
+	int file_c = 0;
 	int i;
 	char t;
-	uint8_t **file_names = malloc(sizeof(uint8_t *)*20);
 	uint8_t *temp = malloc(sizeof(char)*100);
+
 	
 	while ((t = (char) info[i]) != NULL) {
-		if (t == '{'){
+		
+		if (start == 1 && t == ':') {
+			printf("\r\n");
+			start = 0;
+			temp_c = 0;
+			file_names[file_c] = malloc(sizeof temp);
+			memset(file_names[file_c], NULL, sizeof file_names[file_c]);
+			strcpy(file_names[file_c], temp);
+			//printf("%d, %s", file_c, file_names[file_c]);
+			memset(temp, NULL, strlen(temp));
+			file_c++;
+		}
+		
+		if (start) {
+			temp[temp_c] = info[i];			
+		  //printf("%c", temp[temp_c]);
+			temp_c++;
+		}
+		
+		if (t == '{' || t == ','){
+			memset(temp, NULL, sizeof temp);
+			start = 1;
 		}
 		i++;
 	}
@@ -441,35 +461,28 @@ int main(void)
 
 	printf("Write to info file (f_puts)...\r\n");
 	
-	f_puts(server_info, &card_file);
-	printf(server_info);
+	char server_info_2[] = "{\"teste.txt\":\"2017-05-24T19:45:57.911Z\",\"teste1.txt\":\"2017-05-30T16:06:12.858Z\",\"testecopy.txt\":\"2017-05-30T16:06:12.858Z\"}";
+	
+	f_puts(server_info_2, &card_file);
+	printf(server_info_2);
 	printf("\r\n\r\n");
 	
 	printf("Parsing...\r\n");
-	file_names = info_parser(server_info, sizeof(server_info));
-	//for (int j=0; j<3; j++) {
-	//	printf(file_names[j]);
-	//}
+	info_parser(server_info_2, sizeof(server_info_2), file_names);
 	
 	printf("[OK]\r\n");
 	
 	
 	printf("Fechando arquivo \n");
 
-    /* Close the file */
-    f_close(&card_file);
+  /* Close the file */
+  f_close(&card_file);
 		
 	printf("[OK]\r\n");
-
-
-
-
-
-
-
-
-
-
+	
+	
+	
+	
 
 	
 
