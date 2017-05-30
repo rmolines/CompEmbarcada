@@ -23,7 +23,7 @@
 #define LED_PIN_MASK  (1<<LED_PIN)
 
 
-#define WIFI_EN_N
+#define WIFI_EN
 
 /************************************************************************/
 /*  Global vars                                                         */
@@ -53,7 +53,9 @@ static uint8_t wifi_connected;
 /** Receive buffer definition. */
 static uint8_t gau8ReceivedBuffer[MAIN_WIFI_M2M_BUFFER_SIZE] = {0};
 	
-volatile uint8_t buffer[MAIN_WIFI_M2M_BUFFER_SIZE];  
+volatile uint8_t card_info[MAIN_WIFI_M2M_BUFFER_SIZE];  
+volatile uint8_t server_info[MAIN_WIFI_M2M_BUFFER_SIZE];
+
 	
 uint32 g_rxCnt = 0 ;
 
@@ -116,6 +118,24 @@ uint8_t message_parsing(uint8_t *message){
     printf(MSG_SOCKET_ERRO);
     return(COMMAND_ERRO);
   }      
+}
+
+uint8_t **info_parser (uint8_t *info, int size) {
+	int key = 0;
+	int collon = 0;
+	int counter = 0;
+	int counter2 = 0;
+	int i;
+	char t;
+	uint8_t **file_names = malloc(sizeof(uint8_t *)*20);
+	uint8_t *temp = malloc(sizeof(char)*100);
+	
+	while ((t = (char) info[i]) != NULL) {
+		if (t == '{'){
+		}
+		i++;
+	}
+	return file_names;
 }
 
 /************************************************************************/
@@ -197,7 +217,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 			for (int j=0; j<pstrRecv->s16BufferSize; j++) {
 				if (pstrRecv->pu8Buffer[j]=='{' && pstrRecv->pu8Buffer[j+1]=='"') {
 					printf("ACHOU HAHA");
-					memcpy(buffer, &pstrRecv->pu8Buffer[j], MAIN_WIFI_M2M_BUFFER_SIZE);
+					memcpy(server_info, &pstrRecv->pu8Buffer[j], MAIN_WIFI_M2M_BUFFER_SIZE);
 				}
 			}
 
@@ -207,8 +227,8 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
       memset(pstrRecv->pu8Buffer, 0, pstrRecv->s16BufferSize); 
       //memset(pstrRecv->pu8Buffer, 0, pstrRecv->s16BufferSize); 
       
-			//seta a flag reception
-			reception_flag = 1;
+	//seta a flag reception
+	reception_flag = 1;
 			
       // envia a resposta
       //int8_t  messageAck[]="GET /led=status";
@@ -326,15 +346,17 @@ int main(void)
 
 	/* Initialize Wi-Fi parameters structure. */
 	memset((uint8_t *)&param, 0, sizeof(tstrWifiInitParam));
-
+		
 	/* Initialize Wi-Fi driver with data and status callbacks. */
 	param.pfAppWifiCb = wifi_cb;
 	ret = m2m_wifi_init(&param);
+	printf("coco");
 	if (M2M_SUCCESS != ret) {
 		printf("main: m2m_wifi_init call error!(%d)\r\n", ret);
 		while (1) {
 		}
 	}
+	
 
 	/* Initialize socket module */
 	socketInit();
@@ -367,96 +389,96 @@ int main(void)
 	}
 #endif
 
-	  /** SDCARD */
-	  irq_initialize_vectors();
-		cpu_irq_enable();
+	/** SDCARD */
+	irq_initialize_vectors();
+	cpu_irq_enable();
 		
-		/* Initialize SD MMC stack */
-		sd_mmc_init();
-		printf("\x0C\n\r-- SD/MMC/SDIO Card Example on FatFs --\n\r");
+	/* Initialize SD MMC stack */
+	sd_mmc_init();
+	printf("\x0C\n\r-- SD/MMC/SDIO Card Example on FatFs --\n\r");
 		
-		char test_file_name[] = "0:FINALTESTSUPREME.txt";
-		char card_info_name[] = "0:card-info.txt";
-		Ctrl_status status;
-		FRESULT res;
-		FATFS fs;
-		FIL file_object;
-		FIL card_info;
-		char temp_buffer[MAIN_WIFI_M2M_BUFFER_SIZE];
-		
-		printf("Please plug an SD, MMC or SDIO card in slot.\n\r");
-		/* Wait card present and ready */
-		do {
-			status = sd_mmc_test_unit_ready(0);
-			if (CTRL_FAIL == status) {
-				printf("Card install FAIL\n\r");
-				printf("Please unplug and re-plug the card.\n\r");
-				while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
-				}
-			}
-		} while (CTRL_GOOD != status);
-		
-		printf("Mount disk (f_mount)...\r\n");
-		memset(&fs, 0, sizeof(FATFS));
-		res = f_mount(LUN_ID_SD_MMC_0_MEM, &fs);
-		if (FR_INVALID_DRIVE == res) {
-			printf("[FAIL] res %d\r\n", res);
-			goto main_end_of_test;
-		}
-		printf("[OK]\r\n");
-		
-		printf("Open a file (f_open)...\r\n");
-		card_info_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
-		res = f_open(&card_info,
-		(char const *)card_info_name,
-		 FA_READ);
-		if (res != FR_OK) {
-			printf("[FAIL] res %d\r\n", res);
-			goto main_end_of_test;
-		}
-		printf("[OK]\r\n");
-		
-		printf("Read from card info file (f_gets)...\r\n");
+	char card_info_name[] = "0:info.txt";
+	Ctrl_status status;
+	FRESULT res;
+	FATFS fs;
+	FIL card_file;
+	char temp_buffer[MAIN_WIFI_M2M_BUFFER_SIZE];
+	uint8_t **file_names = malloc(sizeof(uint8_t *)*20);
 
-    /* Read all lines and display it */
-    while (f_gets(temp_buffer, 16, &card_info)) {
-	    printf("%s\r\n", temp_buffer);
-    }
 		
-		printf("Fechando arquivo \n");
+	printf("Please plug an SD, MMC or SDIO card in slot.\n\r");
+	/* Wait card present and ready */
+	do {
+		status = sd_mmc_test_unit_ready(0);
+		if (CTRL_FAIL == status) {
+			printf("Card install FAIL\n\r");
+			printf("Please unplug and re-plug the card.\n\r");
+			while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
+			}
+		}
+	} while (CTRL_GOOD != status);
+		
+	printf("Mount disk (f_mount)...\r\n");
+	memset(&fs, 0, sizeof(FATFS));
+	res = f_mount(LUN_ID_SD_MMC_0_MEM, &fs);
+	if (FR_INVALID_DRIVE == res) {
+		printf("[FAIL] res %d\r\n", res);
+		goto main_end_of_test;
+	}
+	printf("[OK]\r\n");	
+	
+	
+	printf("Create info file (f_open)...\r\n");
+	card_info_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
+	res = f_open(&card_file,
+	(char const *)card_info_name,
+	FA_CREATE_ALWAYS | FA_READ | FA_WRITE);
+	if (res != FR_OK) {
+		printf("[FAIL] res %d\r\n", res);
+		goto main_end_of_test;
+	}
+	printf("[OK]\r\n");
+
+	printf("Write to info file (f_puts)...\r\n");
+	
+	f_puts(server_info, &card_file);
+	printf(server_info);
+	printf("\r\n\r\n");
+	
+	printf("Parsing...\r\n");
+	file_names = info_parser(server_info, sizeof(server_info));
+	//for (int j=0; j<3; j++) {
+	//	printf(file_names[j]);
+	//}
+	
+	printf("[OK]\r\n");
+	
+	
+	printf("Fechando arquivo \n");
 
     /* Close the file */
-    f_close(&card_info);
+    f_close(&card_file);
 		
-		printf("[OK]\r\n");
+	printf("[OK]\r\n");
 
-		printf("Create a file (f_open)...\r\n");
-		test_file_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
-		res = f_open(&file_object,
-		(char const *)test_file_name,
-		FA_CREATE_ALWAYS | FA_WRITE);
-		if (res != FR_OK) {
-			printf("[FAIL] res %d\r\n", res);
-			goto main_end_of_test;
-		}
-		printf("[OK]\r\n");
 
-		printf("Write to test file (f_puts)...\r\n");
-		
-		int i;
-		//pega cada elemento do buffer e os grava no cartão sd
-		//for(i=0; i<sizeof(buffer);i++)
 
-		f_puts(buffer, &file_object);
-		
-		printf("[OK]\r\n");
-		f_close(&file_object);
-		printf("Test is successful.\n\r");
-		
-		main_end_of_test:
-		printf("Please unplug the card.\n\r");
-		while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
-		}
+
+
+
+
+
+
+
+
+	
+
+
+	
+	main_end_of_test:
+	printf("Please unplug the card.\n\r");
+	while (CTRL_NO_PRESENT != sd_mmc_check(0)) {
+	}
 
 	return 0;
 }

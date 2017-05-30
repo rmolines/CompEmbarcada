@@ -59,8 +59,8 @@ extern "C" {
 #define MAIN_WIFI_M2M_BUFFER_SIZE          1460
 
 #define MAIN_SERVER_PORT                   (8081)
-#define MAIN_SERVER_IP_2                   0xC300A8C0 // 192.168.0.195
-#define MAIN_SERVER_IP									 0x6564A8C0 // 192.168.100.101
+#define MAIN_SERVER_IP                   0x6801A8C0 // 192.168.1.104
+#define MAIN_SERVER_IP_2				 0x6564A8C0 // 192.168.100.101
 
 #ifdef __cplusplus
 }
