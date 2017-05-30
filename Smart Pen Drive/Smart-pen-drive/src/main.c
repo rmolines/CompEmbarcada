@@ -22,6 +22,9 @@
 #define LED_PIN		    8
 #define LED_PIN_MASK  (1<<LED_PIN)
 
+
+#define WIFI_EN_N
+
 /************************************************************************/
 /*  Global vars                                                         */
 /************************************************************************/
@@ -65,6 +68,7 @@ const uint8_t MSG_SOCKET_LED_OFF[]      = "Turn Led OFF ! \n";
 const uint8_t MSG_SOCKET_LED_OFF_ACK[]  = "Led Powered OFF \n";
 const uint8_t MSG_SOCKET_LED_STATUS[]   = "Led Status ? \n";
 const uint8_t MSG_SOCKET_ERRO[]         = "Command not defined \n";
+uint8_t host_msg[]												= "GET /";
 enum MSG_SOCKET_COMMANDS {COMMAND_LED_ON, COMMAND_LED_OFF, COMMAND_LED_STATUS, COMMAND_ERRO};
 
 /************************************************************************/
@@ -147,7 +151,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
   {
     uint16_t rtn;
     memset(gau8ReceivedBuffer, 0, sizeof(gau8ReceivedBuffer));
-    sprintf((char *)gau8ReceivedBuffer, "%s%s", HOST_MSG, HOST_MSG_SUFFIX);
+    sprintf((char *)gau8ReceivedBuffer, "%s%s", host_msg, HOST_MSG_SUFFIX);
     
     tstrSocketConnectMsg *pstrConnect = (tstrSocketConnectMsg *)pvMsg;
     if (pstrConnect && pstrConnect->s8Error >= 0) {
@@ -183,20 +187,21 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
     uint16_t messageAckSize;
     uint8_t  command;
         
-		if (pstrRecv && pstrRecv->s16BufferSize > 0) {     
-			printf(" ---------- \n Cnt : %d \n -----------\n", ++g_rxCnt);
+		if (pstrRecv && pstrRecv->s16BufferSize > 0) {
 			   
       // Para debug das mensagens do socket
-			printf("%s \r\n", pstrRecv->pu8Buffer);   
-			//buffer = memcpy(pstrRecv->pu8Buffer, sizeof());
+			//printf("%s \r\n", pstrRecv->pu8Buffer);   
+			
 			
 			uint8_t *temp;
 			for (int j=0; j<pstrRecv->s16BufferSize; j++) {
-				if (pstrRecv->pu8Buffer[j]=='a' && pstrRecv->pu8Buffer[j+1]=='k' && pstrRecv->pu8Buffer[j+2]=='a') {
+				if (pstrRecv->pu8Buffer[j]=='{' && pstrRecv->pu8Buffer[j+1]=='"') {
 					printf("ACHOU HAHA");
-					memcpy(buffer, &pstrRecv->pu8Buffer[j+3], pstrRecv->s16BufferSize-j*sizeof(uint8_t));
+					memcpy(buffer, &pstrRecv->pu8Buffer[j], MAIN_WIFI_M2M_BUFFER_SIZE);
 				}
 			}
+
+			
        
       // limpa o buffer de recepcao e tx
       memset(pstrRecv->pu8Buffer, 0, pstrRecv->s16BufferSize); 
@@ -309,6 +314,8 @@ int main(void)
 	configure_console();
 	printf(STRING_HEADER);
 
+#ifdef WIFI_EN
+
 	/* Initialize the BSP. */
 	nm_bsp_init();
 
@@ -335,45 +342,47 @@ int main(void)
 
 	/* Connect to router. */
 	m2m_wifi_connect((char *)MAIN_WLAN_SSID, sizeof(MAIN_WLAN_SSID), MAIN_WLAN_AUTH, (char *)MAIN_WLAN_PSK, M2M_WIFI_CH_ALL);
-  
-	
-	/** SDCARD */
-	irq_initialize_vectors();
-	cpu_irq_enable();
-	
-	char test_file_name[] = "0:FINALTESTSUPREME.txt";
-	Ctrl_status status;
-	FRESULT res;
-	FATFS fs;
-	FIL file_object;
-	
 	
 	while (!reception_flag) {
 		/* Handle pending events from network controller. */
 		m2m_wifi_handle_events(NULL);
 
 		if (wifi_connected == M2M_WIFI_CONNECTED) {
-				if (tcp_client_socket < 0) {
-  				if ((tcp_client_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    				printf("main: failed to create TCP client socket error!\r\n");
-    				continue;
-  				}
-          
-          /* Connect TCP client socket. */
-          if (connect(tcp_client_socket, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) != SOCK_ERR_NO_ERROR ) {
-            printf("main: failed to connect socket error!\r\n");
-            close(tcp_client_socket);
-            continue;
-          }else{
-            printf("Conectado ! \n");
-          }             
-        }				
+			if (tcp_client_socket < 0) {
+				if ((tcp_client_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+					printf("main: failed to create TCP client socket error!\r\n");
+					continue;
+				}
+				
+				/* Connect TCP client socket. */
+				if (connect(tcp_client_socket, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) != SOCK_ERR_NO_ERROR ) {
+					printf("main: failed to connect socket error!\r\n");
+					close(tcp_client_socket);
+					continue;
+					}else{
+					printf("Conectado ! \n");
+				}
+			}
 		}
 	}
+#endif
+
+	  /** SDCARD */
+	  irq_initialize_vectors();
+		cpu_irq_enable();
 		
 		/* Initialize SD MMC stack */
 		sd_mmc_init();
 		printf("\x0C\n\r-- SD/MMC/SDIO Card Example on FatFs --\n\r");
+		
+		char test_file_name[] = "0:FINALTESTSUPREME.txt";
+		char card_info_name[] = "0:card-info.txt";
+		Ctrl_status status;
+		FRESULT res;
+		FATFS fs;
+		FIL file_object;
+		FIL card_info;
+		char temp_buffer[MAIN_WIFI_M2M_BUFFER_SIZE];
 		
 		printf("Please plug an SD, MMC or SDIO card in slot.\n\r");
 		/* Wait card present and ready */
@@ -396,6 +405,31 @@ int main(void)
 		}
 		printf("[OK]\r\n");
 		
+		printf("Open a file (f_open)...\r\n");
+		card_info_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
+		res = f_open(&card_info,
+		(char const *)card_info_name,
+		 FA_READ);
+		if (res != FR_OK) {
+			printf("[FAIL] res %d\r\n", res);
+			goto main_end_of_test;
+		}
+		printf("[OK]\r\n");
+		
+		printf("Read from card info file (f_gets)...\r\n");
+
+    /* Read all lines and display it */
+    while (f_gets(temp_buffer, 16, &card_info)) {
+	    printf("%s\r\n", temp_buffer);
+    }
+		
+		printf("Fechando arquivo \n");
+
+    /* Close the file */
+    f_close(&card_info);
+		
+		printf("[OK]\r\n");
+
 		printf("Create a file (f_open)...\r\n");
 		test_file_name[0] = LUN_ID_SD_MMC_0_MEM + '0';
 		res = f_open(&file_object,
@@ -412,6 +446,7 @@ int main(void)
 		int i;
 		//pega cada elemento do buffer e os grava no cartão sd
 		//for(i=0; i<sizeof(buffer);i++)
+
 		f_puts(buffer, &file_object);
 		
 		printf("[OK]\r\n");

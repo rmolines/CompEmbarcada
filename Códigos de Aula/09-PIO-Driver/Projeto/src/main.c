@@ -62,6 +62,21 @@ void but_init(void){
 	BUT_PIO->PIO_SCDR	 = BUT_DEBOUNCING_VALUE;// Configura a frequencia do debouncing
 };
 
+static void configure_console(void)
+{
+	
+	const usart_serial_options_t uart_serial_options = {
+		.baudrate   = CONF_UART_BAUDRATE,
+		.charlength = CONF_UART_CHAR_LENGTH,
+		.paritytype = CONF_UART_PARITY,
+		.stopbits   = CONF_UART_STOP_BITS,
+	};
+
+	/* Configure console UART. */
+	sysclk_enable_peripheral_clock(CONSOLE_UART_ID);
+	stdio_serial_init(CONF_UART, &uart_serial_options);
+}
+
 
 
 /************************************************************************/
@@ -74,13 +89,15 @@ int main(void)
 	/************************************************************************/
 
 	sysclk_init();
+	board_init();
+	configure_console();
 	WDT->WDT_MR = WDT_MR_WDDIS;
 
 	/************************************************************************/
 	/* Inicializao I/OS                                                     */
 	/************************************************************************/
 
-	led_init(1);
+		led_init(1);
     but_init();
 
 	/************************************************************************/
@@ -94,6 +111,7 @@ int main(void)
 		* 0 : apertado
 		*/
 		if(_pio_get_output_data_status(BUT_PIO, BUT_PIN_MASK)){
+			printf("apertou");
 			_pio_set(LED_PIO, LED_PIN_MASK);
 		} else {
 			_pio_clear(LED_PIO, LED_PIN_MASK);

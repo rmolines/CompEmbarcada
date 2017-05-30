@@ -192,16 +192,9 @@ void TC0_Handler(void){
 	
 	rtc_get_date(RTC, &year, &month, &day, &week);
 	rtc_get_time(RTC, &hour, &minute, &second);
-
-	printf("%02d/%02d/%04d - %02d:%02d:%02d - Temp : %dºC \r\n",
-	day,
-	month,
-	year,
-	hour,
-	minute,
-	second,
-	(uint32_t) convert_adc_to_temp(g_ul_value));
+	
 	afec_start_software_conversion(AFEC0);
+	
 
 }
 
@@ -301,12 +294,17 @@ int main(void)
 	rtc_set_time_alarm(RTC, 0, hour, 0, minute, 1, second);
 	
 	while (1) {
-		//if(is_conversion_done == true) {
-			//is_conversion_done = false;
+		if(is_conversion_done == true) {
+			is_conversion_done = false;
 			
-			//printf("Temp : ????? \r\n", (uint32_t) convert_adc_to_temp(g_ul_value));
-			//afec_start_software_conversion(AFEC0);
-			//delay_s(1);
-		//}
+			printf("%02d/%02d/%04d - %02d:%02d:%02d - Temp : %dºC \r\n",
+			day,
+			month,
+			year,
+			hour,
+			minute,
+			second,
+			(uint32_t) convert_adc_to_temp(g_ul_value));
+		}
 	}
 }
