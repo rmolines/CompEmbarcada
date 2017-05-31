@@ -23,7 +23,7 @@
 #define LED_PIN_MASK  (1<<LED_PIN)
 
 
-#define WIFI_EN_N
+#define WIFI_EN
 
 /************************************************************************/
 /*  Global vars                                                         */
@@ -52,12 +52,17 @@ static uint8_t wifi_connected;
 
 /** Receive buffer definition. */
 static uint8_t gau8ReceivedBuffer[MAIN_WIFI_M2M_BUFFER_SIZE] = {0};
-	
+
+static uint8_t gau8SentBuffer[MAIN_WIFI_M2M_BUFFER_SIZE] = {0};
+
 volatile uint8_t card_info[MAIN_WIFI_M2M_BUFFER_SIZE];  
 volatile uint8_t server_info[MAIN_WIFI_M2M_BUFFER_SIZE];
 
 	
 uint32 g_rxCnt = 0 ;
+uint8_t recv_flag = 0;
+uint8_t send_flag = 0;
+uint8_t terminate = 0;
 
 /************************************************************************/
 /*  SOCKET MSGs                                                         */
@@ -129,13 +134,12 @@ uint8_t **info_parser (uint8_t *info, int size, uint8_t **file_names) {
 	uint8_t *temp = malloc(sizeof(char)*100);
 
 	
-	while ((t = (char) info[i]) != NULL) {
-		
+	while (i < strlen(info)) {
+		t = (char) info[i];
 		if (start == 1 && t == ':') {
-			printf("\r\n");
 			start = 0;
 			temp_c = 0;
-			file_names[file_c] = malloc(sizeof temp);
+			file_names[file_c] = malloc(sizeof (char) * 100);
 			memset(file_names[file_c], NULL, sizeof file_names[file_c]);
 			strcpy(file_names[file_c], temp);
 			//printf("%d, %s", file_c, file_names[file_c]);
@@ -144,8 +148,7 @@ uint8_t **info_parser (uint8_t *info, int size, uint8_t **file_names) {
 		}
 		
 		if (start) {
-			temp[temp_c] = info[i];			
-		  //printf("%c", temp[temp_c]);
+			temp[temp_c] = info[i];		
 			temp_c++;
 		}
 		
@@ -191,7 +194,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
   {
     uint16_t rtn;
     memset(gau8ReceivedBuffer, 0, sizeof(gau8ReceivedBuffer));
-    sprintf((char *)gau8ReceivedBuffer, "%s%s", host_msg, HOST_MSG_SUFFIX);
+    sprintf((char *)gau8ReceivedBuffer, "%s%s%s", HOST_MSG, "file/teste.txt", HOST_MSG_SUFFIX);
     
     tstrSocketConnectMsg *pstrConnect = (tstrSocketConnectMsg *)pvMsg;
     if (pstrConnect && pstrConnect->s8Error >= 0) {
@@ -211,7 +214,7 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 	case SOCKET_MSG_SEND:
 	{
 		printf("socket_cb: send success!\r\n");
-	  //printf("TCP Server Test Complete!\r\n");
+		//printf("TCP Server Test Complete!\r\n");
 		//printf("close socket\n");
 		//close(tcp_client_socket);
 		//close(tcp_server_socket);
@@ -223,49 +226,38 @@ static void socket_cb(SOCKET sock, uint8_t u8Msg, void *pvMsg)
 	{
 		tstrSocketRecvMsg *pstrRecv = (tstrSocketRecvMsg *)pvMsg;
     
+	
     uint8_t  messageAck[64];
     uint16_t messageAckSize;
     uint8_t  command;
         
-		if (pstrRecv && pstrRecv->s16BufferSize > 0) {
-			   
-      // Para debug das mensagens do socket
-			//printf("%s \r\n", pstrRecv->pu8Buffer);   
-			
-			
-			uint8_t *temp;
-			for (int j=0; j<pstrRecv->s16BufferSize; j++) {
-				if (pstrRecv->pu8Buffer[j]=='{' && pstrRecv->pu8Buffer[j+1]=='"') {
-					printf("ACHOU HAHA");
-					memcpy(server_info, &pstrRecv->pu8Buffer[j], MAIN_WIFI_M2M_BUFFER_SIZE);
-				}
-			}
+	if (pstrRecv && pstrRecv->s16BufferSize > 0) {			   
 
-			
+		printf(pstrRecv->pu8Buffer);
+		uint8_t *temp;
+		
+		for (int i=0; i<pstrRecv->u16RemainingSize; i++) {
+			printf("%c", (char) pstrRecv->pu8Buffer[i]);
+		}
+		for (int j=0; j<sizeof (pstrRecv->s16BufferSize); j++) {
+			printf("%c", pstrRecv->pu8Buffer[j]);
+			if (pstrRecv->pu8Buffer[j]=='{' && pstrRecv->pu8Buffer[j+1]=='"') {
+				memcpy(server_info, &pstrRecv->pu8Buffer[j], MAIN_WIFI_M2M_BUFFER_SIZE);
+				//printf(server_info);
+			}
+		}			
        
       // limpa o buffer de recepcao e tx
       memset(pstrRecv->pu8Buffer, 0, pstrRecv->s16BufferSize); 
-      //memset(pstrRecv->pu8Buffer, 0, pstrRecv->s16BufferSize); 
-      
-	//seta a flag reception
-	reception_flag = 1;
-			
-      // envia a resposta
-      //int8_t  messageAck[]="GET /led=status";
-      //send(tcp_client_socket, messageAck, sizeof(messageAck), 0);
-      
-      // Requista novos dados
-      //recv(tcp_client_socket, gau8SocketTestBuffer, sizeof(gau8SocketTestBuffer), 0);
-      
+
+		reception_flag = 1;
  		} else {
 			printf("socket_cb: recv error!\r\n");
 			close(tcp_client_socket);
 			tcp_client_socket = -1;
-		}    
+		}
+	break; 
 	}
-
-	break;
-
 	default:
 		break;
 	}
@@ -370,7 +362,6 @@ int main(void)
 	/* Initialize Wi-Fi driver with data and status callbacks. */
 	param.pfAppWifiCb = wifi_cb;
 	ret = m2m_wifi_init(&param);
-	printf("coco");
 	if (M2M_SUCCESS != ret) {
 		printf("main: m2m_wifi_init call error!(%d)\r\n", ret);
 		while (1) {
@@ -405,7 +396,20 @@ int main(void)
 					printf("Conectado ! \n");
 				}
 			}
+			
+			//if (reception_flag) {
+			//	
+			//	recv_flag = 1;
+			//	// envia a resposta
+			//	int8_t  messageAck[]="GET /file/teste.txt";
+			//	send(tcp_client_socket, messageAck, sizeof(messageAck), 0);
+			//	
+			//	// Requista novos dados
+			//	recv(tcp_client_socket, gau8SocketTestBuffer, sizeof(gau8SocketTestBuffer), 0);
+			//}
 		}
+		
+
 	}
 #endif
 
@@ -461,31 +465,28 @@ int main(void)
 
 	printf("Write to info file (f_puts)...\r\n");
 	
-	char server_info_2[] = "{\"teste.txt\":\"2017-05-24T19:45:57.911Z\",\"teste1.txt\":\"2017-05-30T16:06:12.858Z\",\"testecopy.txt\":\"2017-05-30T16:06:12.858Z\"}";
+	//char server_info_2[] = "{\"teste.txt\":\"2017-05-24T19:45:57.911Z\",\"teste1.txt\":\"2017-05-30T16:06:12.858Z\",\"testecopy.txt\":\"2017-05-30T16:06:12.858Z\"}";
 	
-	f_puts(server_info_2, &card_file);
-	printf(server_info_2);
-	printf("\r\n\r\n");
+	f_puts(server_info, &card_file);
+	printf("\r\n\r\n");	
+	
 	
 	printf("Parsing...\r\n");
-	info_parser(server_info_2, sizeof(server_info_2), file_names);
+	info_parser(server_info, sizeof(server_info), file_names);
 	
 	printf("[OK]\r\n");
 	
+	printf("Requesting files on server\r\n");
+	
+
+	  
 	
 	printf("Fechando arquivo \n");
 
-  /* Close the file */
-  f_close(&card_file);
+	/* Close the file */
+	f_close(&card_file);
 		
 	printf("[OK]\r\n");
-	
-	
-	
-	
-
-	
-
 
 	
 	main_end_of_test:
