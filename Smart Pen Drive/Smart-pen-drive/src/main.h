@@ -53,8 +53,8 @@ extern "C" {
 #define MAIN_WIFI_M2M_SERVER_IP           0xFFFFFFFF /* 255.255.255.255 */
 
 
-#define HOST_MSG													"GET /"
-#define HOST_MSG_SUFFIX									  " HTTP/1.1\r\n Accept: */*\r\n\r\n"
+#define HOST_MSG						  "GET /"
+#define HOST_MSG_SUFFIX					  " HTTP/1.1\r\n Accept: */*\r\n\r\n"
 
 #define MAIN_WIFI_M2M_BUFFER_SIZE          1460
 
